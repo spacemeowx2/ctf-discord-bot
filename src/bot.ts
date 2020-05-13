@@ -84,7 +84,7 @@ export class A0EBot {
         await reply('Command not found.')
       }
       try {
-        handler.handler({
+        await handler.handler({
           client: this.client,
           message: msg,
           reply,

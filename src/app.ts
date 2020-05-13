@@ -24,6 +24,18 @@ async function getActiveCategory(store: LevelGraph, guild: Guild) {
   return category
 }
 
+async function updateStore(store: LevelGraph, subject: string, predicate: string, object: string) {
+  const d = {
+    subject,
+    predicate,
+  }
+  const result = await store.get(d)
+  if (result.length) {
+    await store.del(result)
+  }
+  await store.put({ ...d, object })
+}
+
 async function active({ client, message, reply, store }: HandlerParams) {
   const { channel, author, guild } = message
   if (!isTextChannel(channel)) throw new Error('impossible')
@@ -35,7 +47,7 @@ async function active({ client, message, reply, store }: HandlerParams) {
     throw new BotError('Permission denied')
   }
   console.log(`guild: ${guild.name} active ctf: ${category.name} by ${author.username}`)
-  await store.put(guild.id, Predicate.ActiveCTF, category.id)
+  await updateStore(store, guild.id, Predicate.ActiveCTF, category.id)
   await reply(`Current active is set to ${category.name}`)
 }
 
@@ -56,6 +68,10 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
     throw new BotError(`Current active CTF is not set`)
   }
   const category = await client.channels.fetch(categoryId, true) as Discord.CategoryChannel
+  const existing = guild.channels.cache.find(i => i.parent?.id === categoryId && i.name === name)
+  if (existing) {
+    throw new BotError(`The challenge is existed`)
+  }
   console.log(`New challenge: ${name} by ${author.username}`)
 
   const newTextChannel = await guild.channels.create(name, {
@@ -71,12 +87,13 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
       name: challRole(name),
       color: [0, 255, 0],
       hoist: true,
-      mentionable: true
+      mentionable: true,
+      position: 0
     }
   })
   const msg = await newTextChannel.send('React this message to get the role')
   await msg.react('🏳')
-  await reply(`Challenge ${name} created`)
+  await reply(`Challenge ${newTextChannel} created`)
 }
 
 async function main () {
