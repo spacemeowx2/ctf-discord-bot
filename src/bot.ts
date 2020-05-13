@@ -111,7 +111,7 @@ export class A0EBot {
     }
     if (msg.content.startsWith(commandPrefix)) {
       const content = msg.content.slice(commandPrefix.length)
-      const [ command, rest ] = content.split(' ', 2)
+      const [ command, ...rest ] = content.split(' ')
       const handler = this.commands[command]
       if (!handler) {
         await reply('Command not found.')
@@ -122,7 +122,7 @@ export class A0EBot {
           message: msg,
           reply,
           store: this.options.store,
-          rest
+          rest: rest.join(' ')
         })
       } catch (e) {
         console.error(e)

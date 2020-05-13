@@ -106,6 +106,8 @@ async function ctf({ reply, store, message, client }: HandlerParams) {
 async function newChall({ rest: name, message, store, reply, client }: HandlerParams) {
   const { author, guild } = message
   if (!guild) throw new BotError('Error: guild not found')
+  const CheckRE = / /
+  if (CheckRE.test(name)) throw new BotError(`Error: challenge name can't contain /${CheckRE.source}/`)
 
   const category = await getActiveCategory(store, guild)
   const existing = guild.channels.cache.find(i => i.parent?.id === category.id && i.name === name)
@@ -165,6 +167,29 @@ async function solveChall({ message, reply }: HandlerParams) {
   await sendNotify(store, guild, `Challenge ${channel} solved`)
 }
 
+async function overview({ message, reply }: HandlerParams) {
+  let result = []
+
+  const now = Date.now()
+  const { guild, channel, author } = message
+  if (!guild) throw new BotError('Error: guild not found')
+  const active = await getActiveCategory(store, guild)
+
+  for (const [, channel] of guild.channels.cache.filter(i => i.type === 'text' && i.parentID === active.id)) {
+    const min = Math.floor((now - channel.createdTimestamp) / 60 / 1000)
+    const role = guild.roles.cache.find(i => i.name === challRole(channel.name))
+    if (role) {
+      let users = [...role.members.values()].map(i => i.user.username).join(', ')
+      if (users.length === 0) {
+        users = 'Nobody'
+      }
+      result.push(`${channel.name} (${min}min) - ${users}`)
+    }
+  }
+
+  reply(result)
+}
+
 async function main () {
   const client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] })
   await client.login(BotToken)
@@ -195,6 +220,10 @@ async function main () {
   bot.addCommand('solve', {
     handler: solveChall,
     help: 'Solve current challenge, will remove the voice channel and role with the same name.',
+  })
+  bot.addCommand('overview', {
+    handler: overview,
+    help: 'List all challenges and users on each challenge.'
   })
   bot.onReaction(async (reaction, user, action) => {
     if (!reaction.me) return
