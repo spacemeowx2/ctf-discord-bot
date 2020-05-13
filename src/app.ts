@@ -60,7 +60,6 @@ async function ctf({ reply, store, message, client }: HandlerParams) {
 
 async function newChall({ rest: name, message, store, reply }: HandlerParams) {
   const { author, guild } = message
-  // if (!ChallengeRE.test(name)) new BotError(`challenge name should follow: ${ChallengeRE.source}`)
   if (!guild) throw new BotError('Error: guild not found')
 
   const categoryId = await store.find(guild.id, Predicate.ActiveCTF) as string
@@ -123,6 +122,7 @@ async function main () {
         return
       }
     }
+    if (!reaction.me) return
     const { channel, guild } = reaction.message
     if (user.bot) return
     if (!isTextChannel(channel)) return
@@ -151,6 +151,7 @@ async function main () {
         return
       }
     }
+    if (!reaction.me) return
     const { channel, guild } = reaction.message
     if (user.bot) return
     if (!isTextChannel(channel)) return
