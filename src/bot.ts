@@ -10,6 +10,7 @@ export class BotError extends Error {
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
 
+export type ReactionCallback = (reaction: Discord.MessageReaction, user: Discord.User, action: 'Add' | 'Remove') => void
 export type HandlerParams = {
   client: Discord.Client
   message: Discord.Message
@@ -32,6 +33,7 @@ export interface BotOptions {
 export class A0EBot {
   private options: BotOptions
   private commands: Record<string, Command> = {}
+  private reactionCallback: ReactionCallback[] = []
 
   constructor (private client: Discord.Client, options?: Partial<BotOptions>) {
     this.options = {
@@ -56,6 +58,34 @@ export class A0EBot {
         msg.reply(`Error: ${e.message}`)
       }
     })
+    client.on('messageReactionAdd', async (reaction, user) => {
+      if (reaction.partial) {
+        try {
+          await reaction.fetch()
+        } catch (error) {
+          console.log('Something went wrong when fetching the message: ', error)
+          return
+        }
+      }
+
+      for (let cb of this.reactionCallback) {
+        cb(reaction, user as Discord.User, 'Add')
+      }
+    })
+    client.on('messageReactionRemove', async (reaction, user) => {
+      if (reaction.partial) {
+        try {
+          await reaction.fetch()
+        } catch (error) {
+          console.log('Something went wrong when fetching the message: ', error)
+          return
+        }
+      }
+
+      for (let cb of this.reactionCallback) {
+        cb(reaction, user as Discord.User, 'Remove')
+      }
+    })
 
     this.addCommand('help', {
       help: 'Show help message',
@@ -70,6 +100,9 @@ export class A0EBot {
   }
   addCommand(command: string, cmd: Command) {
     this.commands[command] = cmd
+  }
+  onReaction(callback: ReactionCallback) {
+    this.reactionCallback.push(callback)
   }
   private async onMessage (msg: Discord.Message) {
     const { commandPrefix } = this.options
@@ -92,6 +125,7 @@ export class A0EBot {
           rest
         })
       } catch (e) {
+        console.error(e)
         if (e.isBotError) {
           await reply(e.content)
         } else {
