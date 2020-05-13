@@ -14,7 +14,7 @@
     "@types/node": "^13.13.5",
     "@types/ws": "^7.2.4",
     "discord.js": "^12.2.0",
-    "level": "^6.0.1",
+    "level-ts": "^1.12.2",
     "typescript": "^3.8.3"
   }
 }
