@@ -92,7 +92,7 @@ export class A0EBot {
       handler: async ({ reply }) => {
         let result = []
         for (let [command, { help }] of Object.entries(this.commands)) {
-          result.push(`${command} - ${help}`)
+          result.push(`${this.options.commandPrefix}${command} - ${help}`)
         }
         await reply(result.join('\n'))
       }
@@ -114,7 +114,6 @@ export class A0EBot {
       const [ command, ...rest ] = content.split(' ')
       const handler = this.commands[command]
       if (!handler) {
-        await reply('Command not found.')
         return
       }
       try {

@@ -1,4 +1,4 @@
-import Discord, { Guild, StringResolvable } from 'discord.js'
+import Discord, { Guild, StringResolvable, Role } from 'discord.js'
 import { A0EBot, HandlerParams, isTextChannel, BotError } from './bot'
 import { LevelGraph } from 'level-ts'
 import { CronJob } from 'cron'
@@ -10,7 +10,7 @@ const store = new LevelGraph('./database')
 enum Predicate {
   ActiveCTF = 'ActiveCTF',
   NotifyChannel = 'NotifyChannel',
-  CTFStarted = 'CTFStarted'
+  CTFStarted = 'CTFStarted',
 }
 
 function challRole(chall: string) {
@@ -71,6 +71,11 @@ async function clear({ message, reply }: HandlerParams) {
   for (const [, role] of guild.roles.cache.filter(i => i.name.startsWith(challRole('')))) {
     await role.delete('Deleted by clear')
   }
+
+  const active = await getActiveCategory(store, guild)
+  for (const [, channel] of guild.channels.cache.filter(i => i.type === 'voice' && i.parent?.id === active.id)) {
+    await channel.delete('Deleted by clear')
+  }
   await reply(`Clear done`)
 }
 
@@ -108,38 +113,45 @@ async function ctf({ reply, store, message, client }: HandlerParams) {
 async function newChall({ rest: name, message, store, reply }: HandlerParams) {
   const { author, guild } = message
   if (!guild) throw new BotError('Error: guild not found')
-  const CheckRE = /[a-z0-9-_]/
-  if (!CheckRE.test(name)) throw new BotError(`Error: challenge name must be /${CheckRE.source}/`)
 
   const category = await getActiveCategory(store, guild)
-  const existing = guild.channels.cache.find(i => i.parent?.id === category.id && i.name === name)
-  if (existing) {
-    throw new BotError(`The challenge is existed`)
-  }
-  console.log(`New challenge: ${name} by ${author.username}`)
-
   const newTextChannel = await guild.channels.create(name, {
     type: 'text',
     parent: category
   })
-  await guild.channels.create(name, {
-    type: 'voice',
-    parent: category
-  })
-  await guild.roles.create({
-    data: {
-      name: challRole(name),
-      color: [0, 255, 0],
-      hoist: true,
-      mentionable: true,
-      position: 0
+
+  try {
+    const channels = [...guild.channels.cache.filter(i => i.parent?.id === category.id && i.name === newTextChannel.name).values()]
+
+    if (channels.length > 1) {
+      throw new BotError(`The challenge is existed`)
     }
-  })
-  const msg = await newTextChannel.send('React this message to get the role')
-  await msg.react('🏳')
-  await msg.pin()
-  await reply(`Challenge ${newTextChannel} created`)
-  await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
+
+    console.log(`New challenge: ${name} by ${author.username}`)
+
+    await guild.channels.create(newTextChannel.name, {
+      type: 'voice',
+      parent: category
+    })
+    await guild.roles.create({
+      data: {
+        name: challRole(newTextChannel.name),
+        color: [0, 255, 0],
+        hoist: true,
+        mentionable: true,
+        position: 0
+      }
+    })
+    const msg = await newTextChannel.send('React this message to get the role')
+    await msg.react('🏳')
+    await msg.pin()
+    await reply(`Challenge ${newTextChannel} created`)
+    await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
+  } catch (e) {
+    console.error('Failed to create challenge', e)
+    await newTextChannel.delete()
+    throw e
+  }
 }
 
 async function solveChall(params: HandlerParams) {
@@ -154,21 +166,21 @@ async function solveChall(params: HandlerParams) {
     return
   }
 
-  await channel.setPosition(1000)
-  const voice = guild.channels.cache.find(i => i.parent?.id === category.id && i.name === channel.name && i.type === 'voice')
-  if (voice) {
-    await voice.delete('Challenge solved')
-  }
-
   await guild.roles.fetch()
   const role = guild.roles.cache.find(i => i.name === challRole(channel.name))
-  if (role) {
+  const voice = guild.channels.cache.find(i => i.parent?.id === category.id && i.name === channel.name && i.type === 'voice')
+  if (voice && role) {
+    await voice.delete('Challenge solved')
     await role.delete('Challenge solved')
-  }
 
-  await reply(`Challenge ${channel} solved`)
-  await sendNotify(store, guild, `Challenge ${channel} solved`)
-  await sendNotify(store, guild, await getOverview(guild))
+    await reply(`Challenge ${channel} solved`)
+    await sendNotify(store, guild, `Challenge ${channel} solved`)
+    await sendNotify(store, guild, await getOverview(guild))
+  } else if ((!voice) && (!role)) {
+    await reply(`This challenge is already solved`)
+  } else {
+    await reply(`Error: Wrong state on this challenge`)
+  }
 }
 
 async function getOverview(guild: Guild) {
@@ -188,6 +200,9 @@ async function getOverview(guild: Guild) {
       }
       result.push(`${channel} (${min}min) - ${users}`)
     }
+  }
+  if (result.length === 0) {
+    result.push('No challenge is active')
   }
   embed.addField('Overview', result.join('\n'))
 
@@ -228,7 +243,7 @@ async function main () {
   })
   bot.addCommand('clear', {
     handler: clear,
-    help: 'Clear all roles start with `chall-`. (Admin)'
+    help: 'Clear all roles start with `chall-` and voice channels. (Admin)'
   })
   bot.addCommand('notify', {
     handler: notify,
