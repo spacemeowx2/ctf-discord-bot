@@ -17,7 +17,9 @@ export type HandlerParams = {
   reply: (content: StringResolvable) => Promise<Message>
   store: LevelGraph
   rest: string
+  command: string
 }
+
 export type Handler = (params: HandlerParams) => Promise<void>
 type Command = {
   help: string
@@ -122,7 +124,8 @@ export class A0EBot {
           message: msg,
           reply,
           store: this.options.store,
-          rest: rest.join(' ')
+          rest: rest.join(' '),
+          command: commandPrefix + command
         })
       } catch (e) {
         console.error(e)

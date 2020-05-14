@@ -6,6 +6,7 @@ import { CronJob } from 'cron'
 const BotToken = process.env.BOT_TOKEN
 const ClientId = process.env.CLIENT_ID
 const store = new LevelGraph('./database')
+const FlagReaction = '🏳'
 
 enum Predicate {
   ActiveCTF = 'ActiveCTF',
@@ -15,6 +16,40 @@ enum Predicate {
 
 function challRole(chall: string) {
   return `chall-${chall}`
+}
+
+function timeout<T>(ms: number, promise: Promise<T>): Promise<T> {
+  return new Promise<T>((res, rej) => {
+    setTimeout(() => rej(new Error('Timed out')), ms)
+    promise.then(res, rej)
+  })
+}
+
+async function confirm(message: Discord.Message, confirm: string, timeoutMs = 30 * 1000): Promise<boolean> {
+  const Confirm = '✅'
+  const Cancel = '❎'
+  const msg = await message.channel.send(`${message.author} ${confirm}`)
+  try {
+    await msg.react(Confirm)
+    await msg.react(Cancel)
+    const collected = await timeout(
+      timeoutMs,
+      msg.awaitReactions((r: Discord.MessageReaction, user: Discord.User) =>
+        user.id === message.author.id && [Confirm, Cancel].includes(r.emoji.name), {max: 1}
+      )
+    )
+    let r = collected.first()
+    if (r?.emoji.name == '✅') {
+      return true
+    } else {
+      return false
+    }
+  } catch (e) {
+    console.error(e)
+    return false
+  } finally {
+    await msg.delete()
+  }
 }
 
 async function getActiveCategory(store: LevelGraph, guild: Guild) {
@@ -143,7 +178,7 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
       }
     })
     const msg = await newTextChannel.send('React this message to get the role')
-    await msg.react('🏳')
+    await msg.react(FlagReaction)
     await msg.pin()
     await reply(`Challenge ${newTextChannel} created`)
     await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
@@ -242,6 +277,26 @@ async function stop({ store, message, reply }: HandlerParams) {
   await reply(`CTF stopped`)
 }
 
+async function deleteMsg({ message, rest, reply, command }: HandlerParams) {
+  await checkAdmin(message)
+  if (!isTextChannel(message.channel)) throw new BotError('impossible')
+
+  const count = parseInt(rest)
+  if (!(0 < count && count < 100)) {
+    await reply(`Usage: ${command} <count>, 0 < count < 100`)
+    return
+  }
+  console.log(`${message.author.username} try to delete ${count} messages on ${message.channel.name}`)
+  const confirmed = await confirm(message, `Are you sure to delete ${count} messages?`)
+  if (confirmed) {
+    const fetched = await message.channel.messages.fetch({ limit: count })
+    message.channel.bulkDelete(fetched)
+    console.log(`${message.author.username} delete done.`)
+  } else {
+    console.log(`${message.author.username} canceled delete.`)
+  }
+}
+
 async function main () {
   const client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] })
   await client.login(BotToken)
@@ -269,6 +324,10 @@ async function main () {
     handler: active,
     help: 'Make current category as active CTF. (Admin)',
   })
+  bot.addCommand('delete', {
+    handler: deleteMsg,
+    help: 'Bulk delete message above. (Admin)'
+  })
   bot.addCommand('ctf', {
     handler: ctf,
     help: 'Query current active CTF.',
@@ -287,6 +346,7 @@ async function main () {
   })
   bot.onReaction(async (reaction, user, action) => {
     if (!reaction.me) return
+    if (reaction.emoji.name !== FlagReaction) return
     const { channel, guild } = reaction.message
     if (user.bot) return
     if (!isTextChannel(channel)) return
