@@ -172,6 +172,8 @@ async function solveChall(params: HandlerParams) {
   if (voice && role) {
     await voice.delete('Challenge solved')
     await role.delete('Challenge solved')
+    const newPos = guild.channels.cache.filter(i => i.type === 'text' && i.parent?.id === category.id).size
+    await channel.setPosition(newPos - 1)
 
     await reply(`Challenge ${channel} solved`)
     await sendNotify(store, guild, `Challenge ${channel} solved`)
@@ -181,6 +183,12 @@ async function solveChall(params: HandlerParams) {
   } else {
     await reply(`Error: Wrong state on this challenge`)
   }
+}
+
+function min2str(min: number) {
+  const h = Math.floor(min / 60)
+  const m = min % 60
+  return `${h}h${m}m`
 }
 
 async function getOverview(guild: Guild) {
