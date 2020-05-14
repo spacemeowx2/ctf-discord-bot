@@ -1,6 +1,7 @@
-import Discord, { Guild, Role } from 'discord.js'
+import Discord, { Guild, StringResolvable } from 'discord.js'
 import { A0EBot, HandlerParams, isTextChannel, BotError } from './bot'
 import { LevelGraph } from 'level-ts'
+import { CronJob } from 'cron'
 
 const BotToken = process.env.BOT_TOKEN
 const ClientId = process.env.CLIENT_ID
@@ -9,6 +10,7 @@ const store = new LevelGraph('./database')
 enum Predicate {
   ActiveCTF = 'ActiveCTF',
   NotifyChannel = 'NotifyChannel',
+  CTFStarted = 'CTFStarted'
 }
 
 function challRole(chall: string) {
@@ -48,7 +50,7 @@ async function checkAdmin(message: Discord.Message) {
   }
 }
 
-async function sendNotify(store: LevelGraph, guild: Guild, text: string) {
+async function sendNotify(store: LevelGraph, guild: Guild, text: StringResolvable) {
   try {
     const id = await store.find(guild.id, Predicate.NotifyChannel) as string | null
     if (!id) return
@@ -140,7 +142,8 @@ async function newChall({ rest: name, message, store, reply, client }: HandlerPa
   await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
 }
 
-async function solveChall({ message, reply }: HandlerParams) {
+async function solveChall(params: HandlerParams) {
+  const { message, reply } = params
   const { guild, channel, author } = message
   if (!guild) throw new BotError('Error: guild not found')
   if (!isTextChannel(channel)) throw new BotError('Error: !isTextChannel')
@@ -165,16 +168,15 @@ async function solveChall({ message, reply }: HandlerParams) {
 
   await reply(`Challenge ${channel} solved`)
   await sendNotify(store, guild, `Challenge ${channel} solved`)
+  await sendNotify(store, guild, await getOverview(guild))
 }
 
-async function overview({ message, reply }: HandlerParams) {
-  let result = []
-
+async function getOverview(guild: Guild) {
   const now = Date.now()
-  const { guild, channel, author } = message
-  if (!guild) throw new BotError('Error: guild not found')
   const active = await getActiveCategory(store, guild)
 
+  let embed = new Discord.MessageEmbed()
+    .setColor('FFFF00')
   for (const [, channel] of guild.channels.cache.filter(i => i.type === 'text' && i.parentID === active.id)) {
     const min = Math.floor((now - channel.createdTimestamp) / 60 / 1000)
     const role = guild.roles.cache.find(i => i.name === challRole(channel.name))
@@ -183,11 +185,34 @@ async function overview({ message, reply }: HandlerParams) {
       if (users.length === 0) {
         users = 'Nobody'
       }
-      result.push(`${channel.name} (${min}min) - ${users}`)
+      embed.addField(`${channel.name} (${min}min)`, users)
     }
   }
 
-  reply(result)
+  return {
+    embed
+  }
+}
+
+async function overview({ message, reply }: HandlerParams) {
+  const { guild } = message
+  if (!guild) throw new BotError('Error: guild not found')
+
+  await reply(await getOverview(guild))
+}
+
+async function start({ store, message, reply }: HandlerParams) {
+  const { guild } = message
+  if (!guild) throw new BotError('Error: guild not found')
+  await updateStore(store, guild.id, Predicate.CTFStarted, '1')
+  await reply(`CTF started`)
+}
+
+async function stop({ store, message, reply }: HandlerParams) {
+  const { guild } = message
+  if (!guild) throw new BotError('Error: guild not found')
+  await updateStore(store, guild.id, Predicate.CTFStarted, '0')
+  await reply(`CTF stopped`)
 }
 
 async function main () {
@@ -225,6 +250,14 @@ async function main () {
     handler: overview,
     help: 'List all challenges and users on each challenge.'
   })
+  bot.addCommand('start', {
+    handler: start,
+    help: 'Start CTF and start to send notification per hour'
+  })
+  bot.addCommand('stop', {
+    handler: stop,
+    help: 'Stop CTF and stop sending notification'
+  })
   bot.onReaction(async (reaction, user, action) => {
     if (!reaction.me) return
     const { channel, guild } = reaction.message
@@ -249,7 +282,18 @@ async function main () {
     } else if (action === 'Remove') {
       await member?.roles.remove(role)
     }
-  })
+  });
+  // 0 * * * * per hour
+  new CronJob('0 * * * *', async () => {
+    const tasks = await store.get({ predicate: Predicate.CTFStarted })
+    for (const { subject: guildId, object: started } of tasks) {
+      const guild = client.guilds.resolve(guildId as string)
+      if (!guild) continue
+      if (started === '1') {
+        await sendNotify(store, guild, await getOverview(guild))
+      }
+    }
+  }).start()
 }
 
 main().catch(e => console.error(e))

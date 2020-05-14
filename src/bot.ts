@@ -115,6 +115,7 @@ export class A0EBot {
       const handler = this.commands[command]
       if (!handler) {
         await reply('Command not found.')
+        return
       }
       try {
         await handler.handler({

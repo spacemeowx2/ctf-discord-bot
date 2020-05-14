@@ -11,8 +11,10 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@types/cron": "^1.7.2",
     "@types/node": "^13.13.5",
     "@types/ws": "^7.2.4",
+    "cron": "^1.8.2",
     "discord.js": "^12.2.0",
     "level-ts": "^1.12.2",
     "typescript": "^3.8.3"
