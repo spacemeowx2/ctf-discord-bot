@@ -179,7 +179,7 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
     })
     const msg = await newTextChannel.send('React this message to get the role')
     await msg.react(FlagReaction)
-    console.log(await msg.pin())
+    await msg.pin()
     await reply(`Challenge ${newTextChannel} created`)
     await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
   } catch (e) {
