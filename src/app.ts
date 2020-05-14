@@ -223,7 +223,9 @@ async function solveChall(params: HandlerParams) {
 function min2str(min: number) {
   const h = Math.floor(min / 60)
   const m = min % 60
-  return `${h}h${m}m`
+  const hs = h > 0 ? `${h}h` : ''
+  const ms = `0${m}`.slice(-2)
+  return `${hs}${ms}m`
 }
 
 async function getOverview(guild: Guild) {
@@ -241,7 +243,7 @@ async function getOverview(guild: Guild) {
       if (users.length === 0) {
         users = 'Nobody'
       }
-      result.push(`${channel} (${min}min) - ${users}`)
+      result.push(`${channel} (${min2str(min)}) - ${users}`)
     }
   }
   if (result.length === 0) {
