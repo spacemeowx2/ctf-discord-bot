@@ -177,6 +177,7 @@ async function getOverview(guild: Guild) {
 
   let embed = new Discord.MessageEmbed()
     .setColor('FFFF00')
+  const result = []
   for (const [, channel] of guild.channels.cache.filter(i => i.type === 'text' && i.parentID === active.id)) {
     const min = Math.floor((now - channel.createdTimestamp) / 60 / 1000)
     const role = guild.roles.cache.find(i => i.name === challRole(channel.name))
@@ -185,9 +186,10 @@ async function getOverview(guild: Guild) {
       if (users.length === 0) {
         users = 'Nobody'
       }
-      embed.addField(`${channel.name} (${min}min)`, users)
+      result.push(`${channel} (${min}min) - ${users}`)
     }
   }
+  embed.addField('Overview', result.join('\n'))
 
   return {
     embed
