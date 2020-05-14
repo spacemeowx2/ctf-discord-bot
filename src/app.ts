@@ -179,7 +179,7 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
     })
     const msg = await newTextChannel.send('React this message to get the role')
     await msg.react(FlagReaction)
-    await msg.pin()
+    console.log(await msg.pin())
     await reply(`Challenge ${newTextChannel} created`)
     await sendNotify(store, guild, `Challenge ${newTextChannel} created`)
   } catch (e) {
@@ -282,14 +282,14 @@ async function deleteMsg({ message, rest, reply, command }: HandlerParams) {
   if (!isTextChannel(message.channel)) throw new BotError('impossible')
 
   const count = parseInt(rest)
-  if (!(0 < count && count < 100)) {
-    await reply(`Usage: ${command} <count>, 0 < count < 100`)
+  if (!(0 < count && count <= 100)) {
+    await reply(`Usage: ${command} <count>, 0 < count <= 100`)
     return
   }
   console.log(`${message.author.username} try to delete ${count} messages on ${message.channel.name}`)
   const confirmed = await confirm(message, `Are you sure to delete ${count} messages?`)
   if (confirmed) {
-    const fetched = await message.channel.messages.fetch({ limit: count })
+    const fetched = await message.channel.messages.fetch({ limit: count + 1 })
     message.channel.bulkDelete(fetched)
     console.log(`${message.author.username} delete done.`)
   } else {
