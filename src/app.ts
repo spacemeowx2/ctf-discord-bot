@@ -105,11 +105,11 @@ async function ctf({ reply, store, message, client }: HandlerParams) {
   await reply(`Current active CTF is ${category.name}`)
 }
 
-async function newChall({ rest: name, message, store, reply, client }: HandlerParams) {
+async function newChall({ rest: name, message, store, reply }: HandlerParams) {
   const { author, guild } = message
   if (!guild) throw new BotError('Error: guild not found')
-  const CheckRE = / /
-  if (CheckRE.test(name)) throw new BotError(`Error: challenge name can't contain /${CheckRE.source}/`)
+  const CheckRE = /[a-z0-9-_]/
+  if (!CheckRE.test(name)) throw new BotError(`Error: challenge name must be /${CheckRE.source}/`)
 
   const category = await getActiveCategory(store, guild)
   const existing = guild.channels.cache.find(i => i.parent?.id === category.id && i.name === name)
@@ -204,6 +204,7 @@ async function overview({ message, reply }: HandlerParams) {
 }
 
 async function start({ store, message, reply }: HandlerParams) {
+  await checkAdmin(message)
   const { guild } = message
   if (!guild) throw new BotError('Error: guild not found')
   await updateStore(store, guild.id, Predicate.CTFStarted, '1')
@@ -211,6 +212,7 @@ async function start({ store, message, reply }: HandlerParams) {
 }
 
 async function stop({ store, message, reply }: HandlerParams) {
+  await checkAdmin(message)
   const { guild } = message
   if (!guild) throw new BotError('Error: guild not found')
   await updateStore(store, guild.id, Predicate.CTFStarted, '0')
@@ -226,15 +228,23 @@ async function main () {
   })
   bot.addCommand('clear', {
     handler: clear,
-    help: 'Clear all roles start with `chall-` (Admin)'
+    help: 'Clear all roles start with `chall-`. (Admin)'
   })
   bot.addCommand('notify', {
     handler: notify,
     help: 'Set notification channel, CTF events will be sent to the channel. (Admin)'
   })
+  bot.addCommand('start', {
+    handler: start,
+    help: 'Start CTF and start to send notification per hour. (Admin)'
+  })
+  bot.addCommand('stop', {
+    handler: stop,
+    help: 'Stop CTF and stop sending notification. (Admin)'
+  })
   bot.addCommand('active', {
     handler: active,
-    help: 'Make current category as active CTF. Only user with manage channel can run this command.',
+    help: 'Make current category as active CTF. (Admin)',
   })
   bot.addCommand('ctf', {
     handler: ctf,
@@ -251,14 +261,6 @@ async function main () {
   bot.addCommand('overview', {
     handler: overview,
     help: 'List all challenges and users on each challenge.'
-  })
-  bot.addCommand('start', {
-    handler: start,
-    help: 'Start CTF and start to send notification per hour'
-  })
-  bot.addCommand('stop', {
-    handler: stop,
-    help: 'Stop CTF and stop sending notification'
   })
   bot.onReaction(async (reaction, user, action) => {
     if (!reaction.me) return
