@@ -12,4 +12,6 @@ COPY . /code
 
 RUN npm run build
 
+VOLUME [ "/code/database" ]
+
 CMD [ "npm", "start" ]
