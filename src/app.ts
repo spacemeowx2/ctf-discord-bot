@@ -39,7 +39,7 @@ async function confirm(message: Discord.Message, confirm: string, timeoutMs = 30
       )
     )
     let r = collected.first()
-    if (r?.emoji.name == '✅') {
+    if (r?.emoji.name == Confirm) {
       return true
     } else {
       return false
