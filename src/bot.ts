@@ -1,5 +1,7 @@
 import Discord, { Message, TextChannel, MessageOptions, StringResolvable, Guild } from 'discord.js'
 import { LevelGraph } from 'level-ts'
+import { fromEvent } from 'rxjs'
+import { filter, map } from 'rxjs/operators'
 
 export class BotError extends Error {
   isBotError = true
@@ -99,6 +101,22 @@ export class A0EBot {
         await reply(result.join('\n'))
       }
     })
+  }
+  fromMessage() {
+    return fromEvent<Discord.Message>(this.client, 'message').pipe(
+      map(message => ({
+        message
+      }))
+    )
+  }
+  fromTextMessage() {
+    return fromEvent<Discord.Message>(this.client, 'message').pipe(
+      filter(message => message.channel.type === 'text'),
+      map(message => ({
+        message,
+        channel: message.channel as Discord.TextChannel
+      }))
+    )
   }
   addCommand(command: string, cmd: Command) {
     this.commands[command] = cmd

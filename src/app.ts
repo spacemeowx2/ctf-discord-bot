@@ -2,6 +2,8 @@ import Discord, { Guild, StringResolvable, Role } from 'discord.js'
 import { A0EBot, HandlerParams, isTextChannel, BotError } from './bot'
 import { LevelGraph } from 'level-ts'
 import { CronJob } from 'cron'
+import { fromEvent } from 'rxjs'
+import { filter } from 'rxjs/dist/types/operators'
 
 const BotToken = process.env.BOT_TOKEN
 const ClientId = process.env.CLIENT_ID
@@ -311,6 +313,19 @@ async function deleteMsg({ message, rest, reply, command }: HandlerParams) {
   }
 }
 
+function getCategory(message: Discord.Message) {
+  if (!isTextChannel(message.channel)) throw new Error('Not in text channel')
+  return message.channel.parent
+}
+
+function isAdmin() {
+  return filter(({ message }: { message: Discord.Message }) => !!getCategory(message)?.permissionsFor(message.author)?.has('MANAGE_CHANNELS'))
+}
+
+function checkAdmin() {
+
+}
+
 async function main () {
   const client = new Discord.Client({ partials: ['MESSAGE', 'CHANNEL', 'REACTION'] })
   await client.login(BotToken)
@@ -318,6 +333,7 @@ async function main () {
   const bot = new A0EBot(client, {
     store
   })
+  bot.fromTextMessage().pipe(isAdmin())
   bot.addCommand('clear', {
     handler: clear,
     help: 'Clear all roles start with `chall-` and voice channels. (Admin)'
