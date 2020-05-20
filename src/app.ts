@@ -2,8 +2,7 @@ import Discord, { Guild, StringResolvable, Role } from 'discord.js'
 import { A0EBot, HandlerParams, isTextChannel, BotError } from './bot'
 import { LevelGraph } from 'level-ts'
 import { CronJob } from 'cron'
-import { fromEvent } from 'rxjs'
-import { filter } from 'rxjs/dist/types/operators'
+import { filter, map } from 'rxjs/dist/types/operators'
 
 const BotToken = process.env.BOT_TOKEN
 const ClientId = process.env.CLIENT_ID
@@ -320,10 +319,6 @@ function getCategory(message: Discord.Message) {
 
 function isAdmin() {
   return filter(({ message }: { message: Discord.Message }) => !!getCategory(message)?.permissionsFor(message.author)?.has('MANAGE_CHANNELS'))
-}
-
-function checkAdmin() {
-
 }
 
 async function main () {
