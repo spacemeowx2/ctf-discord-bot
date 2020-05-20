@@ -211,8 +211,8 @@ async function solveChall(params: HandlerParams) {
     await channel.setPosition(newPos - 1)
 
     await reply(`Challenge ${channel} solved`)
-    await sendNotify(store, guild, `Challenge ${channel} solved`)
     await sendNotify(store, guild, await getOverview(guild))
+    await sendNotify(store, guild, `Challenge ${channel} solved`)
   } else if ((!voice) && (!role)) {
     await reply(`This challenge is already solved`)
   } else {
