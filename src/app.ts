@@ -167,7 +167,7 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
     const last = textChannels.find(c => guild.roles.cache.find(i => i.name === challRole(c.name)))
 
     if (last) {
-      await newTextChannel.setPosition(last.position + 1)
+      await newTextChannel.setPosition(last.position)
     }
 
     console.log(`New challenge: ${name} by ${author.username}`)
