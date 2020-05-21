@@ -163,11 +163,11 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
     }
 
     await guild.roles.fetch()
-    const textChannels = [...guild.channels.cache.filter(i => i.type === 'text' && i.parent?.id === category.id).values()]
-    const first = textChannels.find(c => guild.roles.cache.find(i => i.name === challRole(c.name)))
+    const textChannels = [...guild.channels.cache.filter(i => i.type === 'text' && i.parent?.id === category.id).values()].reverse()
+    const last = textChannels.find(c => guild.roles.cache.find(i => i.name === challRole(c.name)))
 
-    if (first) {
-      await newTextChannel.setPosition(first.position)
+    if (last) {
+      await newTextChannel.setPosition(last.position + 1)
     }
 
     console.log(`New challenge: ${name} by ${author.username}`)
