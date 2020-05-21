@@ -355,7 +355,6 @@ async function main () {
     help: 'List all challenges and users on each challenge.'
   })
   bot.onReaction(async (reaction, user, action) => {
-    if (!reaction.me) return
     if (reaction.emoji.name !== FlagReaction) return
     const { channel, guild } = reaction.message
     if (user.bot) return
