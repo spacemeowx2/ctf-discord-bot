@@ -14,6 +14,10 @@ enum Predicate {
   CTFStarted = 'CTFStarted',
 }
 
+function emojiEquals(a: string, b: string) {
+  return a.replace(/[\ufe00-\ufe0f]/g, '') === b.replace(/[\ufe00-\ufe0f]/g, '')
+}
+
 function challRole(chall: string) {
   return `chall-${chall}`
 }
@@ -355,7 +359,7 @@ async function main () {
     help: 'List all challenges and users on each challenge.'
   })
   bot.onReaction(async (reaction, user, action) => {
-    if (reaction.emoji.name !== FlagReaction) return
+    if (!emojiEquals(reaction.emoji.name, FlagReaction)) return
     const { channel, guild } = reaction.message
     if (user.bot) return
     if (!isTextChannel(channel)) return
