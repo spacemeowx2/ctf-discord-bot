@@ -162,6 +162,14 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
       throw new BotError(`The challenge is existed`)
     }
 
+    await guild.roles.fetch()
+    const textChannels = [...guild.channels.cache.filter(i => i.type === 'text' && i.parent?.id === category.id).values()]
+    const first = textChannels.find(i => guild.roles.cache.find(i => i.name === challRole(i.name)))
+
+    if (first) {
+      await newTextChannel.setPosition(first.position)
+    }
+
     console.log(`New challenge: ${name} by ${author.username}`)
 
     await guild.channels.create(newTextChannel.name, {
