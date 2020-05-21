@@ -164,7 +164,7 @@ async function newChall({ rest: name, message, store, reply }: HandlerParams) {
 
     await guild.roles.fetch()
     const textChannels = [...guild.channels.cache.filter(i => i.type === 'text' && i.parent?.id === category.id).values()]
-    const first = textChannels.find(i => guild.roles.cache.find(i => i.name === challRole(i.name)))
+    const first = textChannels.find(c => guild.roles.cache.find(i => i.name === challRole(c.name)))
 
     if (first) {
       await newTextChannel.setPosition(first.position)
